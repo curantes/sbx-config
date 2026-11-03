@@ -25,8 +25,15 @@ if [[ ${#templates[@]} -eq 0 ]]; then
   for f in allow/*.txt; do templates+=("$(basename "$f" .txt)"); done
 fi
 
+restart=0 changed=0
 run() {
-  if (( dry )); then echo "  would run: $*"; else "$@" >/dev/null; echo "  ran: $*"; fi
+  local out
+  if (( dry )); then echo "  would run: $*"; return; fi
+  out=$("$@" 2>&1) || { echo "$out" >&2; return 1; }
+  echo "  ran: $*"
+  changed=1
+  [[ $out == *"daemon restart"* ]] && restart=1
+  return 0
 }
 
 setting() {
@@ -93,5 +100,11 @@ for t in "${templates[@]}"; do
   fi
 done
 
-(( dry )) && echo "(dry run: nothing changed)"
+if (( dry )); then
+  echo "(dry run: nothing changed)"
+elif (( changed )); then
+  echo "== next steps"
+  (( restart )) && echo "- Restart the daemon so all settings take effect: sbx daemon restart"
+  echo "- Recreate existing sandboxes (sbx rm <name>); settings apply to new ones."
+fi
 exit 0
