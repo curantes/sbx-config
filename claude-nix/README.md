@@ -35,14 +35,16 @@ podman, same arguments):
 
 ## Allow Nix network access (once)
 
-Initialize the global network policy first (one-time; `sbx policy reset`
-starts over), otherwise adding rules fails with `412 Precondition Failed`:
+The hosts Nix needs inside the sandbox are listed in
+[`policy/allow/claude-nix.txt`](../policy/allow/claude-nix.txt). Add
+them, together with the hardened sbx settings, with:
 
-    sbx policy init balanced
+    ../policy/apply.sh
 
-Then allow the hosts Nix needs:
-
-    sbx policy allow network "cache.nixos.org:443,channels.nixos.org:443,releases.nixos.org:443,tarballs.nixos.org:443,github.com:443,api.github.com:443,codeload.github.com:443,objects.githubusercontent.com:443"
+If the global network policy isn't initialized yet, the script tells
+you so; start with `sbx policy init deny-all` (or `balanced`). See the
+[policy README](../policy/README.md) for what the baseline changes and
+why.
 
 ## Authenticate Claude
 
@@ -110,7 +112,8 @@ your own machine:
 
 Anything Claude or a project's code can read inside the sandbox
 (including a `/login` token) should be treated as exposed to that
-code. Network access is limited by the sbx policy above.
+code. Network access is limited by the sbx policy; see the
+[hardened baseline](../policy/README.md).
 
 ## Verify inside the sandbox
 

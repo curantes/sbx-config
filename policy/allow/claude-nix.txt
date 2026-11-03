@@ -1,0 +1,13 @@
+# Hosts the claude-nix template needs inside the sandbox, on top of the
+# Anthropic hosts that the Claude agent kit allows for each sandbox.
+# One host[:port] per line; port defaults to 443.
+
+# Nix binary cache and fetchurl mirror
+cache.nixos.org
+tarballs.nixos.org
+
+# nixpkgs and other flake inputs from GitHub
+github.com
+api.github.com
+codeload.github.com
+objects.githubusercontent.com

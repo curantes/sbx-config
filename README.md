@@ -1,8 +1,15 @@
 # sbx-config
 
 Configuration for [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/)
-(`sbx`), which run coding agents in an isolated microVM: templates, and
-(planned) a hardened baseline for sbx settings and network policy.
+(`sbx`), which run coding agents in an isolated microVM: a hardened
+baseline for sbx settings and network policy, and templates.
+
+## Hardened baseline
+
+[`policy/`](policy/) locks down sbx defaults that open paths back to the
+host (SSH agent forwarding, the shared skills store, unsigned kits) and
+replaces the broad `balanced` network policy with per-template
+allowlists. Run `policy/apply.sh --dry-run` to see what it would change.
 
 ## Templates
 
