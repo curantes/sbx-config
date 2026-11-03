@@ -25,13 +25,12 @@ if [[ ${#templates[@]} -eq 0 ]]; then
   for f in allow/*.txt; do templates+=("$(basename "$f" .txt)"); done
 fi
 
-restart=0 changed=0
+restart=0 changed_settings=0
 run() {
   local out
   if (( dry )); then echo "  would run: $*"; return; fi
   out=$("$@" 2>&1) || { echo "$out" >&2; return 1; }
   echo "  ran: $*"
-  changed=1
   [[ $out == *"daemon restart"* ]] && restart=1
   return 0
 }
@@ -44,6 +43,7 @@ setting() {
   else
     echo "change  $key: ${cur:-<unset>} -> $want"
     run sbx settings set "$key" "$want"
+    (( dry )) || changed_settings=1
   fi
 }
 
@@ -74,7 +74,9 @@ if [[ -z $(sbx policy ls --source local -q 2>/dev/null) ]]; then
   echo "  sbx policy init balanced" >&2
   exit 1
 fi
-if [[ -n $(sbx policy ls --source local --created-via default -q 2>/dev/null) ]]; then
+# `balanced` adds default network allow rules; `deny-all` adds only
+# filesystem defaults.
+if [[ -n $(sbx policy ls --source local --created-via default --type network -q 2>/dev/null) ]]; then
   echo "note    global policy is 'balanced' (broad default allow rules);"
   echo "        see policy/README.md to switch to deny-all"
 else
@@ -103,7 +105,8 @@ done
 
 if (( dry )); then
   echo "(dry run: nothing changed)"
-elif (( changed )); then
+elif (( changed_settings )); then
+  # Network rules apply to new connections right away; settings don't.
   echo "== next steps"
   (( restart )) && echo "- Restart the daemon so all settings take effect: sbx daemon restart"
   echo "- Recreate existing sandboxes (sbx rm <name>); settings apply to new ones."
