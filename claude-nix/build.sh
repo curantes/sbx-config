@@ -21,21 +21,33 @@ if [[ -z $engine ]]; then
   fi
 fi
 case $engine in
-  docker) save_args=() ;;
-  podman) save_args=(--format docker-archive) ;;
+  # --load: with a buildx builder using the docker-container driver the
+  # result otherwise stays in the build cache, and the save below would
+  # silently export whatever image the tag pointed to before.
+  docker) build_args=(--load) save_args=() ;;
+  podman) build_args=() save_args=(--format docker-archive) ;;
   *) echo "unsupported ENGINE: $engine" >&2; exit 1 ;;
 esac
 
-echo "Building $IMAGE with $engine ($(command -v "$engine"))" >&2
-"$engine" build --pull -t "$IMAGE" "$@" .
+tmp=$(mktemp -d)
+trap 'rm -f "$tmp/iid" "$tmp/image.tar"; rmdir "$tmp"' EXIT
 
-tar=$(mktemp --suffix .tar)
-trap 'rm -f "$tar"' EXIT
-"$engine" image save "${save_args[@]}" -o "$tar" "$IMAGE"
-sbx template load "$tar"
+echo "Building $IMAGE with $engine ($(command -v "$engine"))" >&2
+"$engine" build --pull "${build_args[@]}" --iidfile "$tmp/iid" -t "$IMAGE" "$@" .
+
+# Refuse to load anything but the image this build produced.
+built=$(sed 's/^sha256://' "$tmp/iid")
+tagged=$("$engine" image inspect --format '{{.Id}}' "$IMAGE" | sed 's/^sha256://')
+if [[ $built != "$tagged" ]]; then
+  echo "built image ${built:0:12} but $IMAGE is ${tagged:0:12} in $engine's image store; not loading" >&2
+  exit 1
+fi
+
+"$engine" image save "${save_args[@]}" -o "$tmp/image.tar" "$IMAGE"
+sbx template load "$tmp/image.tar"
 
 echo
-echo "Loaded $IMAGE ($engine image $("$engine" image inspect --format '{{.Id}}' "$IMAGE" | cut -c1-19))."
+echo "Loaded $IMAGE (image ${built:0:12}, built with $engine)."
 echo "Existing sandboxes keep their old image: sbx rm <name> and recreate."
 echo "Run with:"
 echo "  sbx run --pull never --template $IMAGE claude <project-dir>"
