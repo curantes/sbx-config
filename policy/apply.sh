@@ -2,7 +2,7 @@
 # Apply the hardened sbx baseline: settings, plus the network allowlist of
 # each template. Idempotent: only changes what differs, and prints it.
 #
-#   policy/apply.sh [--dry-run] [--no-browser] [--allow-local-kits] [TEMPLATE...]
+#   policy/apply.sh [--dry-run] [--browser] [--allow-local-kits] [TEMPLATE...]
 #
 # TEMPLATE names a file in policy/allow/ (default: all of them). Switching
 # the global policy from `balanced` to `deny-all` is a separate, manual
@@ -10,11 +10,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-dry=0 browser=true local_kits=false templates=()
+dry=0 browser=false local_kits=false templates=()
 for arg in "$@"; do
   case $arg in
     --dry-run) dry=1 ;;
-    --no-browser) browser=false ;;
+    --browser) browser=true ;;
     --allow-local-kits) local_kits=true ;;
     -h|--help) sed -n '2,10s/^# \{0,1\}//p' "$0"; exit 0 ;;
     -*) echo "unknown option: $arg" >&2; exit 2 ;;
@@ -62,8 +62,9 @@ setting kit.allowLocalKits "$local_kits"
 setting clipboard.imagePaste false
 setting claude.remoteControl false
 setting diagnostics.autoUpload no
-# Needed for `/login` (Pro/Max) inside a sandbox; --no-browser turns it
-# off when the Anthropic API key is an sbx secret.
+# Sandboxed code must not open URLs in the host browser, where you are
+# logged in. Turn it on only while running `/login` (Pro/Max) in a new
+# sandbox (see policy/README.md), or keep it on with --browser.
 setting browser.enabled "$browser"
 
 echo "== network policy"

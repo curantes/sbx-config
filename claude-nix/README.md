@@ -63,12 +63,28 @@ Set it before `sbx run`; restart an already running sandbox
 counts against your plan instead of per-token billing, but the login
 token is stored inside the sandbox (readable by code running there)
 and is lost on `sbx rm`, so you log in again for each new sandbox.
+The login needs the host browser, which the hardened baseline turns
+off; enable it just for the login:
+
+    sbx settings set browser.enabled true    # then /login in the sandbox
+    sbx settings set browser.enabled false
+
 Keep such sandboxes short-lived, and prefer an API key for work or
 shared accounts.
 
 ## Run
 
-    sbx run --pull never --template localhost/claude-nix:latest claude ~/src/project
+Claude runs without permission prompts in the sandbox, so use clone
+mode: your repository is mounted read-only, Claude commits to a clone
+inside the sandbox, and you fetch and review its work before it reaches
+your checkout (see [Work in clone mode](../policy/README.md#work-in-clone-mode)):
+
+    cd ~/src/project
+    sbx run --clone --name project --pull never --template localhost/claude-nix:latest claude .
+    git fetch sandbox-project                # on the host, when Claude has committed
+
+Drop `--clone` only when you need Claude's edits live in your working
+tree; then check `.git/hooks` and `.claude/` afterwards.
 
 `--template` only applies when creating a sandbox. Resume an existing
 one (keeping its `/login` and dev-shell cache) by name:

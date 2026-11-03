@@ -18,3 +18,7 @@ enabled), direnv and nix-direnv.
 - Network access is limited by the sandbox policy. A download failing
   with a connection or proxy error is most likely blocked by it: report
   the host to the user instead of working around it.
+- In clone mode (`/run/sandbox/source` exists) you work on a private
+  clone; the user fetches your commits from the host. Work on a branch
+  and commit when a task is done: uncommitted changes never reach the
+  user, and removing the sandbox discards them. Don't push unless asked.

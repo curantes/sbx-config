@@ -6,10 +6,13 @@ baseline for sbx settings and network policy, and templates.
 
 ## Hardened baseline
 
-[`policy/`](policy/) locks down sbx defaults that open paths back to the
-host (SSH agent forwarding, the shared skills store, unsigned kits) and
-replaces the broad `balanced` network policy with per-template
-allowlists. Run `policy/apply.sh --dry-run` to see what it would change.
+Agents in these sandboxes run without permission prompts, so the
+sandbox is the only boundary. [`policy/`](policy/) describes what still
+crosses it and locks it down: sbx defaults that reach back to the host
+(SSH agent, host browser, shared skills store, unsigned kits), a
+`deny-all` network policy with per-template allowlists, clone mode so
+agents never write to your checkout, and narrow credentials. Run
+`policy/apply.sh --dry-run` to see what it would change.
 
 ## Templates
 
