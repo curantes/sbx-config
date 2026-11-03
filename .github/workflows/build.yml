@@ -1,0 +1,50 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  claude-nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The Dockerfile itself checks the Nix version, the nixpkgs registry
+      # pin and that direnv runs. The image is only built, never pushed.
+      - name: Build
+        run: docker build --pull -t claude-nix:ci claude-nix
+
+      - name: Smoke test
+        run: |
+          docker run --rm --entrypoint bash \
+            -e BASH_ENV=/etc/sandbox-persistent.sh \
+            claude-nix:ci -c '
+            set -euo pipefail
+            grep -q "claude-nix" /etc/claude-code/CLAUDE.md
+            cd "$(mktemp -d)"
+            echo "use flake" > .envrc
+            cat > flake.nix <<"NIX"
+          {
+            inputs.nixpkgs.url = "nixpkgs";
+            outputs = { nixpkgs, ... }:
+              let pkgs = nixpkgs.legacyPackages.x86_64-linux; in {
+                devShells.x86_64-linux.default = pkgs.mkShell { packages = [ pkgs.hello ]; };
+              };
+          }
+          NIX
+            # A non-interactive bash gets the dev shell through BASH_ENV.
+            bash -c "hello --version" | head -1
+            # A broken flake must warn, not fail silently. (Sleep so the
+            # edit is newer than nix-direnv's cache.)
+            sleep 1
+            sed -i "s/pkgs.hello/pkgs.doesNotExist/" flake.nix
+            bash -c true 2>&1 | tee err.txt | tail -n 3
+            grep -q "^claude-nix: loading the dev shell" err.txt
+            grep -q "doesNotExist" err.txt
+          '

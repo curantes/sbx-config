@@ -7,9 +7,9 @@
 # Build and load with ./build.sh, then:
 #   sbx run --pull never --template localhost/claude-nix:latest claude ~/src/project
 
-# Pin by digest for reproducible builds, e.g.
-#   --build-arg BASE_IMAGE=docker.io/docker/sandbox-templates:claude-code@sha256:...
-ARG BASE_IMAGE=docker.io/docker/sandbox-templates:claude-code
+# Pinned by digest for reproducible builds; Renovate bumps the digest.
+# renovate: datasource=docker
+ARG BASE_IMAGE=docker.io/docker/sandbox-templates:claude-code@sha256:30ec2b1bb76e3993aff912c553a5c249ad95b595249a32fde7158eafb71bda25
 FROM ${BASE_IMAGE}
 
 # --- system layer (root) ----------------------------------------------
@@ -40,9 +40,9 @@ RUN touch /etc/sandbox-persistent.sh \
 # --- user layer (agent, uid 1000) -------------------------------------
 USER agent
 
-# Pinned Nix release, so a rebuild doesn't silently change Nix. Bump
-# from https://releases.nixos.org/?prefix=nix/ (or pass
-# --build-arg NIX_VERSION=...).
+# Pinned Nix release, so a rebuild doesn't silently change Nix.
+# Renovate bumps it; override with --build-arg NIX_VERSION=...
+# renovate: datasource=github-tags depName=NixOS/nix
 ARG NIX_VERSION=2.35.4
 ARG NIX_INSTALL_URL=https://releases.nixos.org/nix/nix-${NIX_VERSION}/install
 RUN curl -fsSL "$NIX_INSTALL_URL" -o /tmp/install-nix \
@@ -59,8 +59,9 @@ COPY --chown=agent:agent direnv.toml /home/agent/.config/direnv/direnv.toml
 # direnv/nix-direnv, `nixpkgs#...`, and flake inputs `url = "nixpkgs"`
 # when a project has no flake.lock yet (existing locks are unaffected).
 # It replaces the global registry (see flake-registry in nix.conf); a
-# user registry pin would be ignored when locking flake inputs. Bump with
-#   curl -fsSL https://channels.nixos.org/nixpkgs-unstable/git-revision
+# user registry pin would be ignored when locking flake inputs. Renovate
+# bumps it weekly to the head of nixpkgs-unstable (the channel revision).
+# renovate: datasource=git-refs depName=nixpkgs packageName=https://github.com/NixOS/nixpkgs branch=nixpkgs-unstable
 ARG NIXPKGS_REV=d357a2b54f0b6dc4aeb4e993190a52cf151b6f24
 USER root
 RUN printf '%s\n' \
