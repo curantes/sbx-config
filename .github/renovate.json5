@@ -1,0 +1,81 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+    ":semanticCommits",
+    // `# renovate:` comments above `ARG FOO_VERSION=...` in Dockerfiles
+    "customManagers:dockerfileVersions",
+    // `# renovate:` comments above version env vars in workflows
+    "customManagers:githubActionsVersions"
+  ],
+  "labels": ["dependencies"],
+  "reviewers": ["curantes"],
+  "vulnerabilityAlerts": {
+    "labels": ["dependencies", "security"],
+    "schedule": ["at any time"]
+  },
+  "osvVulnerabilityAlerts": true,
+  "customManagers": [
+    {
+      // Images pinned by digest in a Dockerfile ARG used in FROM, e.g.
+      // the claude-nix base image
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)Dockerfile$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>docker)\\s+ARG \\w+=(?<depName>[^\\s:@]+):(?<currentValue>[^\\s@]+)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ]
+    },
+    {
+      // Git branch heads pinned by commit, e.g. NIXPKGS_REV following
+      // nixpkgs-unstable (the channel's revision)
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)Dockerfile$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>git-refs) depName=(?<depName>\\S+) packageName=(?<packageName>\\S+) branch=(?<currentValue>\\S+)\\s+ARG \\w+=(?<currentDigest>[0-9a-f]{40})"
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      // The base image is tracked by the custom manager above; don't let
+      // the built-in Dockerfile manager open a duplicate PR for it
+      "matchManagers": ["dockerfile"],
+      "matchDepNames": ["docker.io/docker/sandbox-templates"],
+      "enabled": false
+    },
+    {
+      // nixpkgs-unstable moves several times a day, and the base image
+      // tag is rebuilt often: one PR each per week is plenty
+      "matchDepNames": ["nixpkgs", "docker.io/docker/sandbox-templates"],
+      "schedule": ["before 4am on monday"]
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions-dependencies",
+      "schedule": ["before 4am on monday"]
+    },
+    {
+      // Low-risk updates merge on their own once the required checks
+      // (image build + smoke test, Renovate config) pass
+      "matchUpdateTypes": ["digest", "pin", "pinDigest", "patch"],
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
+      // Renovate ships minor releases every few days. The pinned version
+      // only runs renovate-config-validator, which the update's own
+      // Renovate Config check exercises.
+      "matchPackageNames": ["renovate"],
+      "matchUpdateTypes": ["minor"],
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
+      // Give upstream time to yank a bad release (e.g. Nix) before it is
+      // proposed. Not applied to image digests or nixpkgs commits: they
+      // lack release timestamps and would stay pending.
+      "matchDatasources": ["github-tags", "github-releases", "github-runners", "npm"],
+      "minimumReleaseAge": "3 days"
+    }
+  ]
+}
