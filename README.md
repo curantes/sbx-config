@@ -14,6 +14,44 @@ crosses it and locks it down: sbx defaults that reach back to the host
 agents never write to your checkout, and narrow credentials. Run
 `policy/apply.sh --dry-run` to see what it would change.
 
+## Usage
+
+[`bin/sbx-claude`](bin/sbx-claude) starts Claude for the repository
+you're in, following the baseline:
+
+    cd ~/src/project
+    sbx-claude                       # create or resume the sandbox for this repo
+    sbx-claude ~/src/other           # same for another directory
+    sbx-claude -- --cpus 4 --memory 8g   # extra `sbx run` flags on creation
+    sbx-claude --direct              # mount read-write instead of cloning
+    sbx-claude --dry-run             # print the sbx command instead
+
+The workspace is the Git repository root. If a sandbox already uses it,
+it's resumed whatever its name; otherwise a new one named
+`claude-<repo>` is created in clone mode from the `claude-nix` template
+(`SBX_CLAUDE_TEMPLATE` picks another). Outside a Git repository it
+refuses unless you pass `--direct`. It needs `jq`.
+
+Put it on your `PATH`, optionally with a short alias:
+
+    ln -s ~/git/sbx-config/bin/sbx-claude ~/.local/bin/
+    alias sc=sbx-claude              # in ~/.bashrc
+
+With home-manager, package it instead, which also runs shellcheck at
+build time:
+
+```nix
+# sbx-config: this repository as a flake input (flake = false)
+home.packages = [
+  (pkgs.writeShellApplication {
+    name = "sbx-claude";
+    runtimeInputs = [ pkgs.jq pkgs.git ];   # sbx comes from your PATH
+    text = builtins.readFile "${sbx-config}/bin/sbx-claude";
+  })
+];
+home.shellAliases.sc = "sbx-claude";
+```
+
 ## Templates
 
 | Template | What it adds |

@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Start or resume the Claude sandbox for a repository.
+#
+#   sbx-claude [--direct] [--dry-run] [DIR] [-- SBX_RUN_ARGS...]
+#
+# DIR defaults to the current directory; its Git repository root is the
+# workspace. If a sandbox for that workspace exists, it is resumed;
+# otherwise one is created from $SBX_CLAUDE_TEMPLATE (default:
+# localhost/claude-nix:latest) in clone mode, named claude-<repo>.
+# --direct mounts the workspace read-write instead of cloning it (see
+# policy/README.md). Arguments after -- go to `sbx run` on creation,
+# e.g. -- --cpus 4 --memory 8g.
+set -euo pipefail
+
+template=${SBX_CLAUDE_TEMPLATE:-localhost/claude-nix:latest}
+direct=0 dry=0 dir=. extra=()
+while (( $# )); do
+  case $1 in
+    --direct) direct=1 ;;
+    --dry-run) dry=1 ;;
+    # Print the header comment (found by content, so it also works when
+    # the script is wrapped, e.g. by writeShellApplication).
+    -h|--help) sed -n '/^# Start or resume/,/^# e\.g\./s/^# \{0,1\}//p' "$0"; exit 0 ;;
+    --) shift; extra=("$@"); break ;;
+    -*) echo "sbx-claude: unknown option: $1" >&2; exit 2 ;;
+    *) dir=$1 ;;
+  esac
+  shift
+done
+
+die() { echo "sbx-claude: $*" >&2; exit 1; }
+command -v sbx >/dev/null || die "sbx is not installed"
+command -v jq >/dev/null || die "jq is required"
+
+dir=$(cd "$dir" 2>/dev/null && pwd -P) || die "no such directory: $dir"
+if root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null); then
+  dir=$root
+  # Clone mode can't mount a linked worktree (its .git is a pointer file).
+  if (( !direct )) && [[ -f $dir/.git ]]; then
+    die "$dir is a linked Git worktree; run from the main checkout or use --direct"
+  fi
+elif (( !direct )); then
+  die "$dir is not in a Git repository; clone mode needs one (git init), or use --direct"
+fi
+
+run() {
+  if (( dry )); then printf 'would run:'; printf ' %q' "$@"; echo; exit 0; fi
+  exec "$@"
+}
+
+# Resume the sandbox that already uses this workspace, whatever its name.
+name=$(sbx ls --json | jq -r --arg ws "$dir" \
+  'map(select(.workspaces[0] == $ws)) | first | .name // empty')
+if [[ -n $name ]]; then
+  echo "sbx-claude: resuming sandbox $name" >&2
+  run sbx run --name "$name"
+fi
+
+name=claude-$(basename "$dir" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9.\n-' '-')
+args=(--name "$name" --pull never --template "$template")
+mode=direct
+if (( !direct )); then args+=(--clone); mode=clone; fi
+echo "sbx-claude: creating sandbox $name ($mode mode)" >&2
+if [[ $(sbx settings get browser.enabled) == false ]]; then
+  echo "sbx-claude: for /login, run 'sbx settings set browser.enabled true' first, and set it back to false afterwards" >&2
+fi
+if (( !direct )); then
+  echo "sbx-claude: fetch its commits on the host with: git fetch sandbox-$name" >&2
+fi
+run sbx run "${args[@]}" "${extra[@]}" claude "$dir"

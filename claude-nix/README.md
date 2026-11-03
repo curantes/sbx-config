@@ -80,11 +80,18 @@ inside the sandbox, and you fetch and review its work before it reaches
 your checkout (see [Work in clone mode](../policy/README.md#work-in-clone-mode)):
 
     cd ~/src/project
-    sbx run --clone --name project --pull never --template localhost/claude-nix:latest claude .
-    git fetch sandbox-project                # on the host, when Claude has committed
+    sbx-claude                               # create or resume this repo's sandbox
+    git fetch sandbox-claude-project         # on the host, when Claude has committed
 
-Drop `--clone` only when you need Claude's edits live in your working
-tree; then check `.git/hooks` and `.claude/` afterwards.
+[`sbx-claude`](../bin/sbx-claude) (see the
+[repository README](../README.md#usage)) runs, for a new sandbox:
+
+    sbx run --name claude-project --pull never --template localhost/claude-nix:latest --clone claude ~/src/project
+
+and `sbx run --name <name>` for one that already uses the repository.
+
+Use `sbx-claude --direct` only when you need Claude's edits live in
+your working tree; then check `.git/hooks` and `.claude/` afterwards.
 
 `--template` only applies when creating a sandbox. Resume an existing
 one (keeping its `/login` and dev-shell cache) by name:
