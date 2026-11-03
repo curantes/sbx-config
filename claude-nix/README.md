@@ -9,6 +9,11 @@ its dev shell is loaded before every command Claude runs.
     ./build.sh                     # docker or podman → sbx template load
     ./build.sh --build-arg BASE_IMAGE=docker.io/docker/sandbox-templates:claude-code@sha256:<digest>
     ./build.sh --build-arg NIXPKGS_REV=$(curl -fsSL https://channels.nixos.org/nixpkgs-unstable/git-revision)
+    ./build.sh --build-arg NIX_VERSION=2.35.4
+
+Requires [`sbx`](https://docs.docker.com/ai/sandboxes/) and docker or
+podman (`ENGINE=docker|podman` to choose). `build.sh` loads only the
+image it just built into sbx and stops if the tag points elsewhere.
 
 ## Allow Nix network access (once)
 
@@ -38,7 +43,8 @@ Set it before `sbx run`; restart an already running sandbox
 counts against your plan instead of per-token billing, but the login
 token is stored inside the sandbox (readable by code running there)
 and is lost on `sbx rm`, so you log in again for each new sandbox.
-Keep such sandboxes short-lived, and don't use this for work.
+Keep such sandboxes short-lived, and prefer an API key for work or
+shared accounts.
 
 ## Run
 
@@ -62,6 +68,26 @@ A sandbox keeps the image it was created from; after a rebuild,
   previous dev shell. `env.sh` detects that and prints a `claude-nix:`
   warning with the Nix error before the command's output, once per
   command, so a broken flake doesn't look like "command not found".
+
+## Security model
+
+The Docker Sandboxes microVM is the isolation boundary. Inside it the
+template deliberately trades safety checks for convenience, so the
+following settings are **only** reasonable there; don't copy them to
+your own machine:
+
+- `direnv.toml` whitelists `/`: every `.envrc` runs automatically,
+  without `direnv allow`. Opening an untrusted project runs its
+  `.envrc` and flake in the sandbox.
+- `nix.conf` sets `sandbox = false`, since Nix's build sandbox needs
+  user namespaces the microVM may not provide. Builds can see the rest
+  of the sandbox filesystem and its network.
+- `accept-flake-config = false` stays on, so a flake can't add its own
+  substituters or Nix settings.
+
+Anything Claude or a project's code can read inside the sandbox
+(including a `/login` token) should be treated as exposed to that
+code. Network access is limited by the sbx policy above.
 
 ## Verify inside the sandbox
 
