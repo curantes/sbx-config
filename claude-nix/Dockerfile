@@ -40,7 +40,11 @@ RUN touch /etc/sandbox-persistent.sh \
 # --- user layer (agent, uid 1000) -------------------------------------
 USER agent
 
-ARG NIX_INSTALL_URL=https://nixos.org/nix/install
+# Pinned Nix release, so a rebuild doesn't silently change Nix. Bump
+# from https://releases.nixos.org/?prefix=nix/ (or pass
+# --build-arg NIX_VERSION=...).
+ARG NIX_VERSION=2.35.4
+ARG NIX_INSTALL_URL=https://releases.nixos.org/nix/nix-${NIX_VERSION}/install
 RUN curl -fsSL "$NIX_INSTALL_URL" -o /tmp/install-nix \
  && sh /tmp/install-nix --no-daemon --no-channel-add --no-modify-profile \
  && rm /tmp/install-nix
@@ -71,4 +75,5 @@ RUN nix registry list \
       > /home/agent/.config/direnv/direnvrc \
  && echo 'eval "$(direnv hook bash)"' >> /home/agent/.bashrc \
  && nix store gc \
+ && nix --version | grep -qF " ${NIX_VERSION}" \
  && nix --version && direnv version
