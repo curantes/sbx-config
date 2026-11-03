@@ -1,7 +1,10 @@
-# sbx-templates
+# sbx-config
 
-Templates for [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/)
-(`sbx`), which run coding agents in an isolated microVM.
+Configuration for [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/)
+(`sbx`), which run coding agents in an isolated microVM: templates, and
+(planned) a hardened baseline for sbx settings and network policy.
+
+## Templates
 
 | Template | What it adds |
 |---|---|
