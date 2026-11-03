@@ -26,6 +26,7 @@ case $engine in
   *) echo "unsupported ENGINE: $engine" >&2; exit 1 ;;
 esac
 
+echo "Building $IMAGE with $engine ($(command -v "$engine"))" >&2
 "$engine" build --pull -t "$IMAGE" "$@" .
 
 tar=$(mktemp --suffix .tar)
@@ -34,5 +35,7 @@ trap 'rm -f "$tar"' EXIT
 sbx template load "$tar"
 
 echo
-echo "Loaded $IMAGE. Run with:"
+echo "Loaded $IMAGE ($engine image $("$engine" image inspect --format '{{.Id}}' "$IMAGE" | cut -c1-19))."
+echo "Existing sandboxes keep their old image: sbx rm <name> and recreate."
+echo "Run with:"
 echo "  sbx run --pull never --template $IMAGE claude <project-dir>"
