@@ -7,13 +7,31 @@ its dev shell is loaded before every command Claude runs.
 ## Build
 
     ./build.sh                     # docker or podman → sbx template load
-    ./build.sh --build-arg BASE_IMAGE=docker.io/docker/sandbox-templates:claude-code@sha256:<digest>
-    ./build.sh --build-arg NIXPKGS_REV=$(curl -fsSL https://channels.nixos.org/nixpkgs-unstable/git-revision)
-    ./build.sh --build-arg NIX_VERSION=2.35.4
 
 Requires [`sbx`](https://docs.docker.com/ai/sandboxes/) and docker or
 podman (`ENGINE=docker|podman` to choose). `build.sh` loads only the
 image it just built into sbx and stops if the tag points elsewhere.
+
+The base image (by digest), the Nix release and the nixpkgs revision
+are pinned in the Dockerfile and kept current by Renovate (see the
+[repository README](../README.md#maintenance)), so a plain `./build.sh`
+is reproducible. To try other versions locally, override them:
+
+    ./build.sh --build-arg BASE_IMAGE=docker.io/docker/sandbox-templates:claude-code@sha256:<digest>
+    ./build.sh --build-arg NIXPKGS_REV=$(curl -fsSL https://channels.nixos.org/nixpkgs-unstable/git-revision)
+    ./build.sh --build-arg NIX_VERSION=<version>
+
+## Test
+
+CI runs [`test/smoke.sh`](test/smoke.sh) in the built image: it checks
+the Claude instructions file, builds a flake dev shell and runs a tool
+from it in a nested bash, then breaks the flake and expects the
+`claude-nix:` warning. To run it locally after `./build.sh` (docker or
+podman, same arguments):
+
+    docker run --rm --entrypoint bash -v "$PWD/test:/test:ro" \
+      -e BASH_ENV=/etc/sandbox-persistent.sh \
+      localhost/claude-nix:latest /test/smoke.sh
 
 ## Allow Nix network access (once)
 
@@ -64,6 +82,11 @@ A sandbox keeps the image it was created from; after a rebuild,
   Claude knows the dev shell loads automatically and doesn't reach for
   `nix develop`. (It isn't named `CLAUDE.md` here so it doesn't apply to
   sessions editing this template on the host.)
+- Changes to the flake take effect on Claude's next command; no
+  restart or `direnv reload` needed. The dev shell is evaluated once per
+  command (nix-direnv's cache keeps that to a fraction of a second, and
+  the first command after a change may build), and nested shells reuse
+  it.
 - If the flake fails to evaluate, nix-direnv silently falls back to the
   previous dev shell. `env.sh` detects that and prints a `claude-nix:`
   warning with the Nix error before the command's output, once per
