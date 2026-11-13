@@ -43,7 +43,7 @@ USER agent
 # Pinned Nix release, so a rebuild doesn't silently change Nix.
 # Renovate bumps it; override with --build-arg NIX_VERSION=...
 # renovate: datasource=github-tags depName=NixOS/nix
-ARG NIX_VERSION=2.35.5
+ARG NIX_VERSION=2.35.6
 ARG NIX_INSTALL_URL=https://releases.nixos.org/nix/nix-${NIX_VERSION}/install
 RUN curl -fsSL "$NIX_INSTALL_URL" -o /tmp/install-nix \
  && sh /tmp/install-nix --no-daemon --no-channel-add --no-modify-profile \
