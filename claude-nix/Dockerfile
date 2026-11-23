@@ -62,7 +62,7 @@ COPY --chown=agent:agent direnv.toml /home/agent/.config/direnv/direnv.toml
 # user registry pin would be ignored when locking flake inputs. Renovate
 # bumps it weekly to the head of nixpkgs-unstable (the channel revision).
 # renovate: datasource=git-refs depName=nixpkgs packageName=https://github.com/NixOS/nixpkgs branch=nixpkgs-unstable
-ARG NIXPKGS_REV=5d2b81a7a3be3e2f832879028e4d60abbf58e9a0
+ARG NIXPKGS_REV=93a9ed0a866099a230ed5146a5bb7d16fd5c9b14
 USER root
 RUN printf '%s\n' \
       '{"version":2,"flakes":[{"from":{"type":"indirect","id":"nixpkgs"},' \
